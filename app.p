@@ -51,3 +51,4 @@ if prompt := st.chat_input("Який товар вас цікавить?"):
         st.markdown(answer)
     
     st.session_state.messages.append({"role": "assistant", "content": answer})
+
