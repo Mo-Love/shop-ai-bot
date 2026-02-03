@@ -1,0 +1,72 @@
+import requests
+from bs4 import BeautifulSoup
+import time
+import json
+
+BASE_URL = "https://bavovna.team"
+
+def get_product_details(product_url):
+    """Заходить на сторінку товару і збирає деталі"""
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        response = requests.get(product_url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        details = {}
+        # Зазвичай характеристики лежать у таблицях або списках 
+        # На сайті Bavovna це часто блоки з класом 'product-properties' або подібні
+        properties = soup.find_all('div', class_='property-item') 
+        
+        for prop in properties:
+            name = prop.find('span', class_='property-name').text.strip()
+            value = prop.find('span', class_='property-value').text.strip()
+            details[name] = value
+            
+        # Отримуємо повний опис
+        full_desc = soup.find('div', id='tab-description').text.strip() if soup.find('div', id='tab-description') else ""
+        
+        return details, full_desc
+    except:
+        return {}, ""
+
+def deep_scrape():
+    catalog_url = f"{BASE_URL}/katalog/"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    response = requests.get(catalog_url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    # Знаходимо всі посилання на товари
+    product_links = soup.select('.product-card a.product-title') # Уточнений селектор
+    
+    full_catalog = []
+    
+    print(f"🚀 Знайдено {len(product_links)} товарів. Починаємо глибокий аналіз...")
+
+    for link_tag in product_links[:10]: # Для тесту беремо перші 10
+        url = BASE_URL + link_tag['href']
+        name = link_tag.text.strip()
+        
+        print(f"📦 Парсимо: {name}")
+        
+        # Викликаємо "глибокий" парсинг
+        specs, description = get_product_details(url)
+        
+        full_catalog.append({
+            "name": name,
+            "url": url,
+            "characteristics": specs,
+            "description": description
+        })
+        
+        # Пауза, щоб сайт нас не заблокував
+        time.sleep(1) 
+    
+    return full_catalog
+
+# Збереження результатів
+data = deep_scrape()
+with open('products_deep.json', 'w', encoding='utf-8') as f:
+    json.dump(data, f, ensure_ascii=False, indent=4)
+
+print("✅ Готово! Дані збережені в products_deep.json")
